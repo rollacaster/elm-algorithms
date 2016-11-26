@@ -47,16 +47,20 @@ view model =
             )
 
 
-insertionSort list =
+insertionSort =
+    insertionSortHelper []
+
+
+insertionSortHelper head list =
     case list of
         [] ->
             []
 
         [ x ] ->
-            [ x ]
+            List.append head [ x ]
 
         x :: (y :: xs) ->
             if y > x then
-                x :: (insertionSort (y :: xs))
+                insertionSortHelper (List.append head [ x ]) (y :: xs)
             else
-                y :: (insertionSort (x :: xs))
+                insertionSortHelper (List.append head [ y ]) (x :: xs)
