@@ -17,7 +17,7 @@ main =
 
 
 init =
-    ( [ 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10 ], Cmd.none )
+    ( ( [], [ 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10 ] ), Cmd.none )
 
 
 type Msg
@@ -27,13 +27,20 @@ type Msg
 update msg model =
     case msg of
         UpdateArray _ ->
-            ( model, Cmd.none )
+            let
+                ( sorted, unsorted ) =
+                    model
+            in
+                ( (insertionSort sorted unsorted), Cmd.none )
 
 
 view model =
     let
         svgHeight =
             100
+
+        ( sorted, unsorted ) =
+            model
     in
         svg [ height (toString svgHeight), width "300" ]
             (List.indexedMap
@@ -54,10 +61,13 @@ view model =
                             ]
                             []
                 )
-                (log "model" (insertionSort [] [ 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10 ]))
+                (List.append sorted unsorted)
             )
 
-insert = insertHelper []
+
+insert =
+    insertHelper []
+
 
 insertHelper head element sorted =
     case sorted of
@@ -66,13 +76,13 @@ insertHelper head element sorted =
 
         [ x ] ->
             if x < element then
-                [ x, element ]
+                List.append head [ x, element ]
             else
-                [ element, x ]
+                List.append head [ element, x ]
 
         x :: xs ->
             if x < element then
-                insertHelper (List.append head [x]) element xs
+                insertHelper (List.append head [ x ]) element xs
             else
                 List.append head (element :: sorted)
 
@@ -80,15 +90,14 @@ insertHelper head element sorted =
 insertionSort sorted list =
     case list of
         [] ->
-            sorted
+            ( sorted, [] )
 
         [ x ] ->
-            insert x sorted
+            ( insert x sorted, [] )
 
         x :: xs ->
-            insertionSort (insert x sorted) xs
+            ( (insert x sorted), xs )
 
 
 subscriptions model =
-    Sub.none
-    -- Time.every (Time.second / 10) UpdateArray
+    Time.every Time.second UpdateArray
