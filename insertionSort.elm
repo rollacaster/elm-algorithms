@@ -18,6 +18,7 @@ main =
 init =
     ( { sorted = SortedList []
       , unsorted = [ 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10 ]
+      , done = False
       }
     , Cmd.none
     )
@@ -106,19 +107,22 @@ insertHelper head element sorted =
 insertionSort sorted list =
     case sorted of
         SortBuffer head element sorted ->
-            { sorted = insertHelper head element sorted, unsorted = list }
+            { sorted = insertHelper head element sorted, unsorted = list, done = False }
 
         SortedList sortedList ->
             case list of
                 [] ->
-                    { sorted = sorted, unsorted = [] }
+                    { sorted = sorted, unsorted = [], done = True }
 
                 [ x ] ->
-                    { sorted = insert x sortedList, unsorted = [] }
+                    { sorted = insert x sortedList, unsorted = [], done = True }
 
                 x :: xs ->
-                    { sorted = insert x sortedList, unsorted = xs }
+                    { sorted = insert x sortedList, unsorted = xs, done = False }
 
 
 subscriptions model =
-    Time.every (Time.second / 5) UpdateArray
+    if model.done == False then
+        Time.every (Time.second / 5) UpdateArray
+    else
+        Sub.none
