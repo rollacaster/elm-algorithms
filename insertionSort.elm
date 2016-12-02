@@ -4,7 +4,6 @@ import Html exposing (Html)
 import Svg exposing (svg, rect)
 import Svg.Attributes exposing (height, width, x, fill, y)
 import Time
-import Debug exposing (log)
 
 
 main =
@@ -17,7 +16,16 @@ main =
 
 
 init =
-    ( ( [], [ 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10 ] ), Cmd.none )
+    ( { sorted = SortedList []
+      , unsorted = [ 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10 ]
+      }
+    , Cmd.none
+    )
+
+
+type CurrentList
+    = SortBuffer (List Int) Int (List Int)
+    | SortedList (List Int)
 
 
 type Msg
@@ -28,7 +36,7 @@ update msg model =
     case msg of
         UpdateArray _ ->
             let
-                ( sorted, unsorted ) =
+                { sorted, unsorted } =
                     model
             in
                 ( (insertionSort sorted unsorted), Cmd.none )
@@ -39,10 +47,18 @@ view model =
         svgHeight =
             100
 
-        ( sorted, unsorted ) =
+        { sorted, unsorted } =
             model
+
+        list =
+            case sorted of
+                SortedList list ->
+                    List.append list unsorted
+
+                SortBuffer head element sorted ->
+                    List.append (List.append head (element :: sorted)) unsorted
     in
-        svg [ height (toString svgHeight), width "300" ]
+        svg [ height (toString svgHeight), width "1000" ]
             (List.indexedMap
                 (\index element ->
                     let
@@ -61,7 +77,7 @@ view model =
                             ]
                             []
                 )
-                (List.append sorted unsorted)
+                list
             )
 
 
@@ -72,32 +88,37 @@ insert =
 insertHelper head element sorted =
     case sorted of
         [] ->
-            [ element ]
+            SortedList ([ element ])
 
         [ x ] ->
             if x < element then
-                List.append head [ x, element ]
+                SortedList (List.append head [ x, element ])
             else
-                List.append head [ element, x ]
+                SortedList (List.append head [ element, x ])
 
         x :: xs ->
             if x < element then
-                insertHelper (List.append head [ x ]) element xs
+                SortBuffer (List.append head [ x ]) element xs
             else
-                List.append head (element :: sorted)
+                SortedList (List.append head (element :: sorted))
 
 
 insertionSort sorted list =
-    case list of
-        [] ->
-            ( sorted, [] )
+    case sorted of
+        SortBuffer head element sorted ->
+            { sorted = insertHelper head element sorted, unsorted = list }
 
-        [ x ] ->
-            ( insert x sorted, [] )
+        SortedList sortedList ->
+            case list of
+                [] ->
+                    { sorted = sorted, unsorted = [] }
 
-        x :: xs ->
-            ( (insert x sorted), xs )
+                [ x ] ->
+                    { sorted = insert x sortedList, unsorted = [] }
+
+                x :: xs ->
+                    { sorted = insert x sortedList, unsorted = xs }
 
 
 subscriptions model =
-    Time.every Time.second UpdateArray
+    Time.every (Time.second / 5) UpdateArray
