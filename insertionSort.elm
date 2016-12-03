@@ -54,10 +54,10 @@ view model =
         list =
             case sorted of
                 SortedList list ->
-                    List.append list unsorted
+                    list ++ unsorted
 
                 SortBuffer head element sorted ->
-                    List.append (List.append head (element :: sorted)) unsorted
+                    head ++ (element :: sorted) ++ unsorted
     in
         svg [ height (toString svgHeight), width "1000" ]
             (List.indexedMap
@@ -89,19 +89,19 @@ insert =
 insertHelper head element sorted =
     case sorted of
         [] ->
-            SortedList ([ element ])
+            SortedList [ element ]
 
         [ x ] ->
             if x < element then
-                SortedList (List.append head [ x, element ])
+                SortedList (head ++ [ x, element ])
             else
-                SortedList (List.append head [ element, x ])
+                SortedList (head ++ [ element, x ])
 
         x :: xs ->
             if x < element then
-                SortBuffer (List.append head [ x ]) element xs
+                SortBuffer (head ++ [ x ]) element xs
             else
-                SortedList (List.append head (element :: sorted))
+                SortedList (head ++ (element :: sorted))
 
 
 insertionSort sorted list =
