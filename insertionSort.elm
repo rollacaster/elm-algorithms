@@ -4,6 +4,8 @@ import Html exposing (Html)
 import Svg exposing (svg, rect)
 import Svg.Attributes exposing (height, width, x, fill, y)
 import Time
+import Color
+import Animation exposing (px)
 
 
 main =
@@ -16,12 +18,29 @@ main =
 
 
 init =
-    ( { sorted = SortedList []
-      , unsorted = [ 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10 ]
-      , done = False
-      }
-    , Cmd.none
-    )
+    let
+        values =
+            [ 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10 ]
+    in
+        ( { sorted = SortedList []
+          , unsorted = values
+          , done = False
+          , styles =
+                List.map
+                    Animation.style
+                    (List.indexedMap
+                        (\index element ->
+                            [ Animation.x (20 * (toFloat index) + 20)
+                            , Animation.y (100 - element)
+                            , Animation.fill (Color.hsl (element * 0.05) 20.0 20.0)
+                            , Animation.height (px element)
+                            ]
+                        )
+                        values
+                    )
+          }
+        , Cmd.none
+        )
 
 
 type CurrentList
@@ -31,6 +50,16 @@ type CurrentList
 
 type Msg
     = UpdateArray Time.Time
+    | Animate Animation.Msg
+
+
+mapCurrentListToList currentList =
+    case currentList of
+        SortBuffer sorted element unsorted ->
+            sorted ++ (element :: unsorted)
+
+        SortedList list ->
+            list
 
 
 update msg model =
@@ -39,8 +68,41 @@ update msg model =
             let
                 { sorted, unsorted } =
                     model
+
+                newModel =
+                    insertionSort sorted unsorted
+
+                newStyles =
+                    List.map3
+                        (\i style element ->
+                            Animation.interrupt
+                                [ Animation.to
+                                    [ Animation.x (20 * (toFloat i) + 20)
+                                    , Animation.y (100 - (toFloat element))
+                                    , Animation.height (px (toFloat element))
+                                    , Animation.fill (Color.hsl ((toFloat element) * 0.05) 20.0 20.0)
+                                    ]
+                                ]
+                                style
+                        )
+                        (List.range 0 (List.length model.styles))
+                        model.styles
+                        ((mapCurrentListToList newModel.sorted) ++ newModel.unsorted)
             in
-                ( (insertionSort sorted unsorted), Cmd.none )
+                ( { sorted = newModel.sorted
+                  , unsorted = newModel.unsorted
+                  , done = newModel.done
+                  , styles = newStyles
+                  }
+                , Cmd.none
+                )
+
+        Animate time ->
+            ( { model
+                | styles = List.map (Animation.update time) model.styles
+              }
+            , Cmd.none
+            )
 
 
 view model =
@@ -48,7 +110,7 @@ view model =
         svgHeight =
             100
 
-        { sorted, unsorted } =
+        { sorted, unsorted, styles } =
             model
 
         list =
@@ -60,25 +122,13 @@ view model =
                     head ++ (element :: sorted) ++ unsorted
     in
         svg [ height (toString svgHeight), width "1000" ]
-            (List.indexedMap
-                (\index element ->
-                    let
-                        margin =
-                            20
-
-                        colWidth =
-                            10
-                    in
-                        rect
-                            [ y (toString (svgHeight - element))
-                            , fill ("#" ++ (toString (15 * element)))
-                            , width (toString colWidth)
-                            , x (toString ((2 * index * colWidth) + margin))
-                            , height (toString element)
-                            ]
-                            []
+            (List.map
+                (\style ->
+                    rect
+                        (Animation.render style ++ [ width "10" ])
+                        []
                 )
-                list
+                styles
             )
 
 
@@ -123,6 +173,9 @@ insertionSort sorted list =
 
 subscriptions model =
     if model.done == False then
-        Time.every (Time.second / 5) UpdateArray
+        Sub.batch
+            [ Time.every (Time.second / 2) UpdateArray
+            , Animation.subscription Animate model.styles
+            ]
     else
-        Sub.none
+        Animation.subscription Animate model.styles
