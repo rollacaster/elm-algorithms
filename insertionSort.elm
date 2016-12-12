@@ -7,7 +7,7 @@ import Time
 import Color
 import Animation exposing (px)
 
-
+main: Program Never Model Msg
 main =
     Html.program
         { init = init
@@ -17,6 +17,19 @@ main =
         }
 
 
+type alias Point =
+    { value : Int, position : Int }
+
+
+type alias Model =
+    { sorted : CurrentList, unsorted : List Int, done : Bool, styles : List Animation.State }
+
+
+type alias ModelList =
+    { sorted : CurrentList, unsorted : List Int, done : Bool }
+
+
+init : ( Model, Cmd Msg )
 init =
     let
         values =
@@ -53,6 +66,7 @@ type Msg
     | Animate Animation.Msg
 
 
+mapCurrentListToList : CurrentList -> List Int
 mapCurrentListToList currentList =
     case currentList of
         SortBuffer sorted element unsorted ->
@@ -62,6 +76,7 @@ mapCurrentListToList currentList =
             list
 
 
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         UpdateArray _ ->
@@ -98,18 +113,12 @@ update msg model =
                 )
 
         Animate time ->
-            ( { model
-                | styles = List.map (Animation.update time) model.styles
-              }
-            , Cmd.none
-            )
+            ( { model | styles = List.map (Animation.update time) model.styles }, Cmd.none )
 
 
+view : Model -> Html msg
 view model =
     let
-        svgHeight =
-            100
-
         { sorted, unsorted, styles } =
             model
 
@@ -121,21 +130,16 @@ view model =
                 SortBuffer head element sorted ->
                     head ++ (element :: sorted) ++ unsorted
     in
-        svg [ height (toString svgHeight), width "1000" ]
-            (List.map
-                (\style ->
-                    rect
-                        (Animation.render style ++ [ width "10" ])
-                        []
-                )
-                styles
-            )
+        svg [ height "100", width "1000" ]
+            (List.map (\style -> rect (Animation.render style ++ [ width "10" ]) []) styles)
 
 
+insert : Int -> List Int -> CurrentList
 insert =
     insertHelper []
 
 
+insertHelper : List Int -> Int -> List Int -> CurrentList
 insertHelper head element sorted =
     case sorted of
         [] ->
@@ -154,6 +158,7 @@ insertHelper head element sorted =
                 SortedList (head ++ (element :: sorted))
 
 
+insertionSort : CurrentList -> List Int -> ModelList
 insertionSort sorted list =
     case sorted of
         SortBuffer head element sorted ->
@@ -171,6 +176,7 @@ insertionSort sorted list =
                     { sorted = insert x sortedList, unsorted = xs, done = False }
 
 
+subscriptions : Model -> Sub Msg
 subscriptions model =
     if model.done == False then
         Sub.batch
