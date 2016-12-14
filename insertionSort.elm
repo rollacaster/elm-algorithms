@@ -7,7 +7,8 @@ import Time
 import Color
 import Animation exposing (px)
 
-main: Program Never Model Msg
+
+main : Program Never Model Msg
 main =
     Html.program
         { init = init
@@ -17,48 +18,9 @@ main =
         }
 
 
-type alias Point =
-    { value : Int, position : Int }
-
-
-type alias Model =
-    { sorted : CurrentList, unsorted : List Int, done : Bool, styles : List Animation.State }
-
-
-type alias ModelList =
-    { sorted : CurrentList, unsorted : List Int, done : Bool }
-
-
-init : ( Model, Cmd Msg )
-init =
-    let
-        values =
-            [ 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10 ]
-    in
-        ( { sorted = SortedList []
-          , unsorted = values
-          , done = False
-          , styles =
-                List.map
-                    Animation.style
-                    (List.indexedMap
-                        (\index element ->
-                            [ Animation.x (20 * (toFloat index) + 20)
-                            , Animation.y (100 - element)
-                            , Animation.fill (Color.hsl (element * 0.05) 20.0 20.0)
-                            , Animation.height (px element)
-                            ]
-                        )
-                        values
-                    )
-          }
-        , Cmd.none
-        )
-
-
 type CurrentList
-    = SortBuffer (List Int) Int (List Int)
-    | SortedList (List Int)
+    = SortBuffer (List Point) Point (List Point)
+    | SortedList (List Point)
 
 
 type Msg
@@ -66,7 +28,50 @@ type Msg
     | Animate Animation.Msg
 
 
-mapCurrentListToList : CurrentList -> List Int
+type alias Position =
+    { x : Int, y : Int }
+
+
+type alias Point =
+    { value : Int, position : Position, style : Animation.State }
+
+
+type alias Model =
+    { sorted : CurrentList, unsorted : List Point, done : Bool }
+
+
+type alias ModelList =
+    { sorted : CurrentList, unsorted : List Point, done : Bool }
+
+
+init : ( Model, Cmd Msg )
+init =
+    let
+        values =
+            List.indexedMap
+                (\i x ->
+                    Point
+                        x
+                        (Position (20 * i) (100 - x))
+                        (Animation.style
+                            [ Animation.x (toFloat (20 * i))
+                            , Animation.y (toFloat (100 - x))
+                            , Animation.fill (Color.hsl ((toFloat x) * 0.05) 20.0 20.0)
+                            , Animation.height (px (toFloat x))
+                            ]
+                        )
+                )
+                [ 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10 ]
+    in
+        ( { sorted = SortedList []
+          , unsorted = values
+          , done = False
+          }
+        , Cmd.none
+        )
+
+
+mapCurrentListToList : CurrentList -> List Point
 mapCurrentListToList currentList =
     case currentList of
         SortBuffer sorted element unsorted ->
@@ -74,6 +79,19 @@ mapCurrentListToList currentList =
 
         SortedList list ->
             list
+
+
+updateStyles element =
+    { element
+        | style =
+            Animation.interrupt
+                [ Animation.to [ Animation.x (toFloat element.position.x) ] ]
+                element.style
+    }
+
+
+animateElement element time =
+    { element | style = Animation.update time element.style }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -88,77 +106,86 @@ update msg model =
                     insertionSort sorted unsorted
 
                 newStyles =
-                    List.map3
-                        (\i style element ->
-                            Animation.interrupt
-                                [ Animation.to
-                                    [ Animation.x (20 * (toFloat i) + 20)
-                                    , Animation.y (100 - (toFloat element))
-                                    , Animation.height (px (toFloat element))
-                                    , Animation.fill (Color.hsl ((toFloat element) * 0.05) 20.0 20.0)
-                                    ]
-                                ]
-                                style
-                        )
-                        (List.range 0 (List.length model.styles))
-                        model.styles
-                        ((mapCurrentListToList newModel.sorted) ++ newModel.unsorted)
+                    case newModel.sorted of
+                        SortedList list ->
+                            SortedList (List.map updateStyles (list))
+
+                        SortBuffer head element unsorted ->
+                            SortBuffer (List.map updateStyles head) (updateStyles element) (List.map updateStyles unsorted)
             in
-                ( { sorted = newModel.sorted
+                ( { sorted = newStyles
                   , unsorted = newModel.unsorted
                   , done = newModel.done
-                  , styles = newStyles
                   }
                 , Cmd.none
                 )
 
         Animate time ->
-            ( { model | styles = List.map (Animation.update time) model.styles }, Cmd.none )
+            case model.sorted of
+                SortedList list ->
+                    ( { model | sorted = SortedList (List.map (\e -> animateElement e time) (list)) }, Cmd.none )
+
+                SortBuffer head element unsorted ->
+                    ( { model | sorted = SortBuffer (List.map (\e -> animateElement e time) head) (animateElement element time) (List.map (\e -> animateElement e time) unsorted) }, Cmd.none )
 
 
 view : Model -> Html msg
 view model =
     let
-        { sorted, unsorted, styles } =
+        { sorted, unsorted } =
             model
-
-        list =
-            case sorted of
-                SortedList list ->
-                    list ++ unsorted
-
-                SortBuffer head element sorted ->
-                    head ++ (element :: sorted) ++ unsorted
     in
         svg [ height "100", width "1000" ]
-            (List.map (\style -> rect (Animation.render style ++ [ width "10" ]) []) styles)
+            (List.map (\element -> rect (Animation.render element.style ++ [ width "10" ]) []) ((mapCurrentListToList sorted) ++ unsorted))
 
 
-insert : Int -> List Int -> CurrentList
+insert : Point -> List Point -> CurrentList
 insert =
     insertHelper []
 
 
-insertHelper : List Int -> Int -> List Int -> CurrentList
+updatePosition : Int -> Point -> Point
+updatePosition newPosition point =
+    let
+        { position } =
+            point
+    in
+        { point | position = { position | x = newPosition * 20 } }
+
+
+insertHelper : List Point -> Point -> List Point -> CurrentList
 insertHelper head element sorted =
     case sorted of
         [] ->
             SortedList [ element ]
 
         [ x ] ->
-            if x < element then
-                SortedList (head ++ [ x, element ])
+            if x.value < element.value then
+                SortedList
+                    (head
+                        ++ [ updatePosition (List.length head) x
+                           , updatePosition (List.length head + 1) element
+                           ]
+                    )
             else
-                SortedList (head ++ [ element, x ])
+                SortedList
+                    (head
+                        ++ [ updatePosition (List.length head) element
+                           , updatePosition (List.length head + 1) x
+                           ]
+                    )
 
         x :: xs ->
-            if x < element then
-                SortBuffer (head ++ [ x ]) element xs
+            if x.value < element.value then
+                SortBuffer
+                    (head ++ [ updatePosition (List.length head) x ])
+                    (updatePosition (List.length head + 1) element)
+                    (List.indexedMap (\i x -> updatePosition (List.length head + 2 + i) x) xs)
             else
-                SortedList (head ++ (element :: sorted))
+                SortedList (head ++ ((updatePosition (List.length head) element) :: (List.indexedMap (\i x -> updatePosition (List.length head + 1 + i) x) sorted)))
 
 
-insertionSort : CurrentList -> List Int -> ModelList
+insertionSort : CurrentList -> List Point -> ModelList
 insertionSort sorted list =
     case sorted of
         SortBuffer head element sorted ->
@@ -180,8 +207,8 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     if model.done == False then
         Sub.batch
-            [ Time.every (Time.second / 2) UpdateArray
-            , Animation.subscription Animate model.styles
+            [ Time.every (Time.second / 3) UpdateArray
+            , Animation.subscription Animate (List.map .style (mapCurrentListToList model.sorted) ++ List.map .style model.unsorted)
             ]
     else
-        Animation.subscription Animate model.styles
+        Animation.subscription Animate (List.map .style (mapCurrentListToList model.sorted) ++ List.map .style model.unsorted)
