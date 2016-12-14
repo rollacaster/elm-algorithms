@@ -1,6 +1,7 @@
 module Main exposing (..)
 
-import Html exposing (Html)
+import Html exposing (Html, h3, div, text)
+import Html.Attributes exposing (style)
 import Svg exposing (svg, rect)
 import Svg.Attributes exposing (height, width, x, fill, y)
 import Time
@@ -136,8 +137,12 @@ view model =
         { sorted, unsorted } =
             model
     in
-        svg [ height "100", width "1000" ]
-            (List.map (\element -> rect (Animation.render element.style ++ [ width "10" ]) []) ((currentListToList sorted) ++ unsorted))
+        div [ (style [ ( "margin", "20px" ), ( "width", "320px" ) ]) ]
+            [ (svg [ height "100", width "320" ]
+                (List.map (\element -> rect (Animation.render element.style ++ [ width "10" ]) []) ((currentListToList sorted) ++ unsorted))
+              )
+            , (h3 [ style [ ( "textAlign", "center" ) ] ] [ text "Insertion Sort" ])
+            ]
 
 
 currentListToList : CurrentList -> List Point
