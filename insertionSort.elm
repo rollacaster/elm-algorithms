@@ -4,7 +4,7 @@ import Html exposing (Html, h3, div, text)
 import Html.Attributes exposing (style)
 import Svg exposing (svg, rect)
 import Svg.Attributes exposing (height, width, x, fill, y)
-import Time
+import Time exposing (Time)
 import Color
 import Animation exposing (px)
 
@@ -25,7 +25,7 @@ type CurrentList
 
 
 type Msg
-    = UpdateArray Time.Time
+    = UpdateArray Time
     | Animate Animation.Msg
 
 
@@ -34,6 +34,10 @@ type alias Point =
 
 
 type alias Model =
+    { sorted : CurrentList, unsorted : List Point, done : Bool, merge : List Point }
+
+
+type alias InsertionList =
     { sorted : CurrentList, unsorted : List Point, done : Bool }
 
 
@@ -59,6 +63,7 @@ init =
         ( { sorted = SortedList []
           , unsorted = unsorted
           , done = False
+          , merge = mergeSort unsorted
           }
         , Cmd.none
         )
@@ -69,7 +74,7 @@ update msg model =
     case msg of
         UpdateArray _ ->
             let
-                { sorted, unsorted } =
+                { sorted, unsorted, merge } =
                     model
 
                 newModel =
@@ -86,9 +91,11 @@ update msg model =
                                 (updateStyles element)
                                 (List.map updateStyles unsorted)
             in
-                ( { sorted = newStyles
-                  , unsorted = newModel.unsorted
-                  , done = newModel.done
+                ( { model
+                    | sorted = newStyles
+                    , unsorted = newModel.unsorted
+                    , done = newModel.done
+                    , merge = List.map updateStyles (List.indexedMap (\i -> updatePosition i) merge)
                   }
                 , Cmd.none
                 )
@@ -100,7 +107,10 @@ update msg model =
             in
                 case model.sorted of
                     SortedList list ->
-                        ( { model | sorted = SortedList (List.map animateWithNewTime (list)) }
+                        ( { model
+                            | sorted = SortedList (List.map animateWithNewTime (list))
+                            , merge = (List.map animateWithNewTime model.merge)
+                          }
                         , Cmd.none
                         )
 
@@ -111,11 +121,13 @@ update msg model =
                                     (List.map animateWithNewTime head)
                                     (animateWithNewTime element)
                                     (List.map animateWithNewTime unsorted)
+                            , merge = (List.map animateWithNewTime model.merge)
                           }
                         , Cmd.none
                         )
 
 
+updateStyles : Point -> Point
 updateStyles element =
     { element
         | style =
@@ -127,6 +139,7 @@ updateStyles element =
     }
 
 
+animateElement : Animation.Msg -> Point -> Point
 animateElement time element =
     { element | style = Animation.update time element.style }
 
@@ -134,7 +147,7 @@ animateElement time element =
 view : Model -> Html msg
 view model =
     let
-        { sorted, unsorted } =
+        { sorted, unsorted, merge } =
             model
     in
         div [ (style [ ( "margin", "20px" ), ( "width", "320px" ) ]) ]
@@ -142,6 +155,10 @@ view model =
                 (List.map (\element -> rect (Animation.render element.style ++ [ width "10" ]) []) ((currentListToList sorted) ++ unsorted))
               )
             , (h3 [ style [ ( "textAlign", "center" ) ] ] [ text "Insertion Sort" ])
+            , (svg [ height "100", width "320" ]
+                (List.map (\element -> rect (Animation.render element.style ++ [ width "10" ]) []) merge)
+              )
+            , (h3 [ style [ ( "textAlign", "center" ) ] ] [ text "Merge Sort" ])
             ]
 
 
@@ -155,7 +172,7 @@ currentListToList currentList =
             list
 
 
-insertionSort : CurrentList -> List Point -> Model
+insertionSort : CurrentList -> List Point -> InsertionList
 insertionSort sorted list =
     case sorted of
         SortBuffer head element sorted ->
@@ -224,3 +241,39 @@ subscriptions model =
             ]
     else
         Animation.subscription Animate (List.map .style (currentListToList model.sorted))
+
+
+mergeSort : List Point -> List Point
+mergeSort unsorted =
+    if (List.length unsorted) <= 1 then
+        unsorted
+    else
+        let
+            middle =
+                (List.length unsorted) // 2
+
+            left =
+                List.take middle unsorted
+
+            right =
+                List.drop middle unsorted
+        in
+            merge (mergeSort left) (mergeSort right) []
+
+
+merge : List Point -> List Point -> List Point -> List Point
+merge left right sorted =
+    case left of
+        [] ->
+            sorted ++ right
+
+        x :: xs ->
+            case right of
+                [] ->
+                    sorted ++ left
+
+                y :: ys ->
+                    if x.value < y.value then
+                        merge xs right (sorted ++ [ x ])
+                    else
+                        merge left ys (sorted ++ [ y ])
