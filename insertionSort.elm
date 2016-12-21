@@ -1,12 +1,12 @@
 module Main exposing (..)
 
+import Animation exposing (px)
+import Color
 import Html exposing (Html, h3, div, text)
 import Html.Attributes exposing (style)
 import Svg exposing (svg, rect)
 import Svg.Attributes exposing (height, width, x, fill, y)
 import Time exposing (Time)
-import Color
-import Animation exposing (px)
 
 
 main : Program Never Model Msg
@@ -19,7 +19,7 @@ main =
         }
 
 
-type CurrentList
+type InsertionStep
     = SortBuffer (List Point) Point (List Point)
     | SortedList (List Point)
 
@@ -34,11 +34,11 @@ type alias Point =
 
 
 type alias Model =
-    { sorted : CurrentList, unsorted : List Point, done : Bool, merge : List Point }
+    { insertion : InsertionState, merge : List Point }
 
 
-type alias InsertionList =
-    { sorted : CurrentList, unsorted : List Point, done : Bool }
+type alias InsertionState =
+    { sorted : InsertionStep, unsorted : List Point, done : Bool }
 
 
 init : ( Model, Cmd Msg )
@@ -60,9 +60,11 @@ init =
                 )
                 [ 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10 ]
     in
-        ( { sorted = SortedList []
-          , unsorted = unsorted
-          , done = False
+        ( { insertion =
+                { sorted = SortedList []
+                , unsorted = unsorted
+                , done = False
+                }
           , merge = mergeSort unsorted
           }
         , Cmd.none
@@ -74,14 +76,14 @@ update msg model =
     case msg of
         UpdateArray _ ->
             let
-                { sorted, unsorted, merge } =
+                { insertion, merge } =
                     model
 
-                newModel =
-                    insertionSort sorted unsorted
+                insertionStep =
+                    insertionSort insertion.sorted insertion.unsorted
 
-                newStyles =
-                    case newModel.sorted of
+                newInsertion =
+                    case insertionStep.sorted of
                         SortedList list ->
                             SortedList (List.map updateStyles (list))
 
@@ -92,9 +94,11 @@ update msg model =
                                 (List.map updateStyles unsorted)
             in
                 ( { model
-                    | sorted = newStyles
-                    , unsorted = newModel.unsorted
-                    , done = newModel.done
+                    | insertion =
+                        { sorted = newInsertion
+                        , unsorted = insertionStep.unsorted
+                        , done = insertionStep.done
+                        }
                     , merge = List.map updateStyles (List.indexedMap (\i -> updatePosition i) merge)
                   }
                 , Cmd.none
@@ -104,11 +108,14 @@ update msg model =
             let
                 animateWithNewTime =
                     animateElement time
+
+                { insertion } =
+                    model
             in
-                case model.sorted of
+                case model.insertion.sorted of
                     SortedList list ->
                         ( { model
-                            | sorted = SortedList (List.map animateWithNewTime (list))
+                            | insertion = { insertion | sorted = SortedList (List.map animateWithNewTime (list)) }
                             , merge = (List.map animateWithNewTime model.merge)
                           }
                         , Cmd.none
@@ -116,11 +123,14 @@ update msg model =
 
                     SortBuffer head element unsorted ->
                         ( { model
-                            | sorted =
-                                SortBuffer
-                                    (List.map animateWithNewTime head)
-                                    (animateWithNewTime element)
-                                    (List.map animateWithNewTime unsorted)
+                            | insertion =
+                                { insertion
+                                    | sorted =
+                                        SortBuffer
+                                            (List.map animateWithNewTime head)
+                                            (animateWithNewTime element)
+                                            (List.map animateWithNewTime unsorted)
+                                }
                             , merge = (List.map animateWithNewTime model.merge)
                           }
                         , Cmd.none
@@ -147,12 +157,12 @@ animateElement time element =
 view : Model -> Html msg
 view model =
     let
-        { sorted, unsorted, merge } =
+        { insertion, merge } =
             model
     in
         div [ (style [ ( "margin", "20px" ), ( "width", "320px" ) ]) ]
             [ (svg [ height "100", width "320" ]
-                (List.map (\element -> rect (Animation.render element.style ++ [ width "10" ]) []) ((currentListToList sorted) ++ unsorted))
+                (List.map (\element -> rect (Animation.render element.style ++ [ width "10" ]) []) ((insertionStepToList insertion.sorted) ++ insertion.unsorted))
               )
             , (h3 [ style [ ( "textAlign", "center" ) ] ] [ text "Insertion Sort" ])
             , (svg [ height "100", width "320" ]
@@ -162,8 +172,8 @@ view model =
             ]
 
 
-currentListToList : CurrentList -> List Point
-currentListToList currentList =
+insertionStepToList : InsertionStep -> List Point
+insertionStepToList currentList =
     case currentList of
         SortBuffer sorted element unsorted ->
             sorted ++ (element :: unsorted)
@@ -172,7 +182,7 @@ currentListToList currentList =
             list
 
 
-insertionSort : CurrentList -> List Point -> InsertionList
+insertionSort : InsertionStep -> List Point -> InsertionState
 insertionSort sorted list =
     case sorted of
         SortBuffer head element sorted ->
@@ -190,12 +200,12 @@ insertionSort sorted list =
                     { sorted = insert x sortedList, unsorted = xs, done = False }
 
 
-insert : Point -> List Point -> CurrentList
+insert : Point -> List Point -> InsertionStep
 insert =
     insertHelper []
 
 
-insertHelper : List Point -> Point -> List Point -> CurrentList
+insertHelper : List Point -> Point -> List Point -> InsertionStep
 insertHelper head element sorted =
     case sorted of
         [] ->
@@ -234,13 +244,13 @@ updatePosition newPosition point =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if model.done == False then
+    if model.insertion.done == False then
         Sub.batch
             [ Time.every (Time.second / 3) UpdateArray
-            , Animation.subscription Animate (List.map .style (currentListToList model.sorted))
+            , Animation.subscription Animate (List.map .style (insertionStepToList model.insertion.sorted))
             ]
     else
-        Animation.subscription Animate (List.map .style (currentListToList model.sorted))
+        Animation.subscription Animate (List.map .style (insertionStepToList model.insertion.sorted))
 
 
 mergeSort : List Point -> List Point
