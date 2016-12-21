@@ -21,7 +21,7 @@ main =
 
 type InsertionStep
     = SortBuffer (List Point) Point (List Point)
-    | SortedList (List Point)
+    | InsertionList (List Point)
 
 
 type Msg
@@ -61,7 +61,7 @@ init =
                 [ 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10, 40, 30, 60, 10 ]
     in
         ( { insertion =
-                { sorted = SortedList []
+                { sorted = InsertionList []
                 , unsorted = unsorted
                 , done = False
                 }
@@ -84,8 +84,8 @@ update msg model =
 
                 newInsertion =
                     case insertionStep.sorted of
-                        SortedList list ->
-                            SortedList (List.map updateStyles (list))
+                        InsertionList list ->
+                            InsertionList (List.map updateStyles (list))
 
                         SortBuffer head element unsorted ->
                             SortBuffer
@@ -113,9 +113,9 @@ update msg model =
                     model
             in
                 case model.insertion.sorted of
-                    SortedList list ->
+                    InsertionList list ->
                         ( { model
-                            | insertion = { insertion | sorted = SortedList (List.map animateWithNewTime (list)) }
+                            | insertion = { insertion | sorted = InsertionList (List.map animateWithNewTime (list)) }
                             , merge = (List.map animateWithNewTime model.merge)
                           }
                         , Cmd.none
@@ -178,7 +178,7 @@ insertionStepToList currentList =
         SortBuffer sorted element unsorted ->
             sorted ++ (element :: unsorted)
 
-        SortedList list ->
+        InsertionList list ->
             list
 
 
@@ -188,7 +188,7 @@ insertionSort sorted list =
         SortBuffer head element sorted ->
             { sorted = insertHelper head element sorted, unsorted = list, done = False }
 
-        SortedList sortedList ->
+        InsertionList sortedList ->
             case list of
                 [] ->
                     { sorted = sorted, unsorted = [], done = True }
@@ -209,18 +209,18 @@ insertHelper : List Point -> Point -> List Point -> InsertionStep
 insertHelper head element sorted =
     case sorted of
         [] ->
-            SortedList [ element ]
+            InsertionList [ element ]
 
         [ x ] ->
             if x.value < element.value then
-                SortedList
+                InsertionList
                     (head
                         ++ [ updatePosition (List.length head) x
                            , updatePosition (List.length head + 1) element
                            ]
                     )
             else
-                SortedList
+                InsertionList
                     (head
                         ++ [ updatePosition (List.length head) element
                            , updatePosition (List.length head + 1) x
@@ -234,7 +234,7 @@ insertHelper head element sorted =
                     (updatePosition (List.length head + 1) element)
                     (List.indexedMap (\i x -> updatePosition (List.length head + 2 + i) x) xs)
             else
-                SortedList (head ++ ((updatePosition (List.length head) element) :: (List.indexedMap (\i x -> updatePosition (List.length head + 1 + i) x) sorted)))
+                InsertionList (head ++ ((updatePosition (List.length head) element) :: (List.indexedMap (\i x -> updatePosition (List.length head + 1 + i) x) sorted)))
 
 
 updatePosition : Int -> Point -> Point
