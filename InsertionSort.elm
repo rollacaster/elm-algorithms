@@ -53,24 +53,20 @@ update oldList =
 
 animate : Animation.Msg -> InsertionList -> InsertionList
 animate time newList =
-    let
-        animateWithNewTime =
-            animateElement time
-    in
-        case newList.sorted of
-            SortedList list ->
-                { sorted = SortedList (List.map animateWithNewTime (list))
-                , unsorted = newList.unsorted
-                }
+    case newList.sorted of
+        SortedList list ->
+            { sorted = SortedList (List.map (animateElement time) list)
+            , unsorted = newList.unsorted
+            }
 
-            SortBuffer head element unsorted ->
-                { sorted =
-                    SortBuffer
-                        (List.map animateWithNewTime head)
-                        (animateWithNewTime element)
-                        (List.map animateWithNewTime unsorted)
-                , unsorted = newList.unsorted
-                }
+        SortBuffer head element unsorted ->
+            { sorted =
+                SortBuffer
+                    (List.map (animateElement time) head)
+                    ((animateElement time) element)
+                    (List.map (animateElement time) unsorted)
+            , unsorted = newList.unsorted
+            }
 
 
 view : InsertionList -> List (Html msg)
