@@ -59,13 +59,10 @@ view model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if model.insertionSort.done == False then
-        Sub.batch
-            [ Time.every (Time.second / 3) UpdateArray
-            , Animation.subscription Animate (List.map .style (InsertionSort.toList model.insertionSort))
-            ]
-    else
-        Animation.subscription Animate (List.map .style (InsertionSort.toList model.insertionSort))
+    Sub.batch
+        [ Time.every (Time.second / 3) UpdateArray
+        , InsertionSort.subscribe Animate model.insertionSort
+        ]
 
 
 main : Program Never Model Msg

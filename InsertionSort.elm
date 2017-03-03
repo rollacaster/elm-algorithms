@@ -6,7 +6,7 @@ module InsertionSort
         , update
         , animate
         , view
-        , toList
+        , subscribe
         )
 
 import Svg exposing (svg, rect)
@@ -18,7 +18,7 @@ import Animation
 
 
 type alias InsertionList =
-    { sorted : CurrentList, unsorted : List Point, done : Bool }
+    { sorted : CurrentList, unsorted : List Point }
 
 
 type CurrentList
@@ -28,7 +28,7 @@ type CurrentList
 
 init : List Point -> InsertionList
 init unsorted =
-    { unsorted = unsorted, sorted = SortedList [], done = False }
+    { unsorted = unsorted, sorted = SortedList [] }
 
 
 update : InsertionList -> InsertionList
@@ -61,7 +61,6 @@ animate time newList =
             SortedList list ->
                 { sorted = SortedList (List.map animateWithNewTime (list))
                 , unsorted = newList.unsorted
-                , done = newList.done
                 }
 
             SortBuffer head element unsorted ->
@@ -71,7 +70,6 @@ animate time newList =
                         (animateWithNewTime element)
                         (List.map animateWithNewTime unsorted)
                 , unsorted = newList.unsorted
-                , done = newList.done
                 }
 
 
@@ -101,22 +99,27 @@ currentListToList currentList =
             list
 
 
+subscribe : (Animation.Msg -> msg) -> InsertionList -> Sub msg
+subscribe msg list =
+    Animation.subscription msg (List.map .style (toList list))
+
+
 insertionSort : CurrentList -> List Point -> InsertionList
 insertionSort sorted list =
     case sorted of
         SortBuffer head element sorted ->
-            { sorted = insertHelper head element sorted, unsorted = list, done = False }
+            { sorted = insertHelper head element sorted, unsorted = list }
 
         SortedList sortedList ->
             case list of
                 [] ->
-                    { sorted = sorted, unsorted = [], done = True }
+                    { sorted = sorted, unsorted = [] }
 
                 [ x ] ->
-                    { sorted = insert x sortedList, unsorted = [], done = True }
+                    { sorted = insert x sortedList, unsorted = [] }
 
                 x :: xs ->
-                    { sorted = insert x sortedList, unsorted = xs, done = False }
+                    { sorted = insert x sortedList, unsorted = xs }
 
 
 insert : Point -> List Point -> CurrentList
