@@ -84,11 +84,6 @@ view list =
     ]
 
 
-toList : InsertionList -> List Point
-toList list =
-    ((currentListToList list.sorted) ++ list.unsorted)
-
-
 currentListToList : CurrentList -> List Point
 currentListToList currentList =
     case currentList of
@@ -101,7 +96,7 @@ currentListToList currentList =
 
 subscribe : (Animation.Msg -> msg) -> InsertionList -> Sub msg
 subscribe msg list =
-    Animation.subscription msg (List.map .style (toList list))
+    Animation.subscription msg (List.map .style ((currentListToList list.sorted) ++ list.unsorted))
 
 
 insertionSort : CurrentList -> List Point -> InsertionList
