@@ -9,11 +9,8 @@ module InsertionSort
         , subscribe
         )
 
-import Svg exposing (svg, rect)
-import Svg.Attributes exposing (height, width, x, fill, y)
-import Html exposing (Html, h3, div, text)
-import Html.Attributes exposing (style)
-import Point exposing (Point, updatePosition, updateStyles, animateElement)
+import Html exposing (Html)
+import Point exposing (Point, updatePosition, updateStyles, animateElement, renderPoints)
 import Animation
 
 
@@ -71,13 +68,12 @@ animate time newList =
 
 view : InsertionList -> List (Html msg)
 view list =
-    [ (svg [ height "100", width "320" ]
-        (List.map (\element -> rect (Animation.render element.style ++ [ width "10" ]) [])
-            ((currentListToList list.sorted) ++ list.unsorted)
-        )
-      )
-    , (h3 [ style [ ( "textAlign", "center" ) ] ] [ text "Insertion Sort" ])
-    ]
+    renderPoints "Insertion Sort" ((currentListToList list.sorted) ++ list.unsorted)
+
+
+subscribe : (Animation.Msg -> msg) -> InsertionList -> Sub msg
+subscribe msg list =
+    Animation.subscription msg (List.map .style ((currentListToList list.sorted) ++ list.unsorted))
 
 
 currentListToList : CurrentList -> List Point
@@ -88,11 +84,6 @@ currentListToList currentList =
 
         SortedList list ->
             list
-
-
-subscribe : (Animation.Msg -> msg) -> InsertionList -> Sub msg
-subscribe msg list =
-    Animation.subscription msg (List.map .style ((currentListToList list.sorted) ++ list.unsorted))
 
 
 insertionSort : CurrentList -> List Point -> InsertionList

@@ -1,5 +1,17 @@
-module Point exposing (Point, updatePosition, updateStyles, animateElement, init)
+module Point
+    exposing
+        ( Point
+        , updatePosition
+        , updateStyles
+        , animateElement
+        , init
+        , renderPoints
+        )
 
+import Svg exposing (svg, rect)
+import Svg.Attributes exposing (height, width, x, fill, y)
+import Html exposing (h3, text, Html)
+import Html.Attributes exposing (style)
 import Color
 import Animation exposing (px)
 
@@ -46,3 +58,12 @@ updateStyles element =
                 ]
                 element.style
     }
+
+
+renderPoints : String -> List Point -> List (Html msg)
+renderPoints label list =
+    [ (svg [ height "100", width "320" ]
+        (List.map (\element -> rect (Animation.render element.style ++ [ width "10" ]) []) list)
+      )
+    , (h3 [ style [ ( "textAlign", "center" ) ] ] [ text label ])
+    ]

@@ -1,10 +1,7 @@
 module MergeSort exposing (mergeSort, update, animate, view)
 
-import Svg exposing (svg, rect)
-import Svg.Attributes exposing (height, width, x, fill, y)
-import Html exposing (Html, h3, div, text)
-import Html.Attributes exposing (style)
-import Point exposing (Point, updateStyles, updatePosition, animateElement)
+import Html exposing (Html)
+import Point exposing (Point, updateStyles, updatePosition, animateElement, renderPoints)
 import Animation
 
 
@@ -20,11 +17,7 @@ animate time newList =
 
 view : List Point -> List (Html msg)
 view list =
-    [ (svg [ height "100", width "320" ]
-        (List.map (\element -> rect (Animation.render element.style ++ [ width "10" ]) []) list)
-      )
-    , (h3 [ style [ ( "textAlign", "center" ) ] ] [ text "Merge Sort" ])
-    ]
+    renderPoints "Merge Sort" list
 
 
 mergeSort : List Point -> List Point
